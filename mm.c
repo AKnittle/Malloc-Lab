@@ -15,7 +15,7 @@ team_t team = {
     /* First member's full name */
     "Jue Hou",
     "hjue@vt.edu",
-    /* Second member's full name (leave blank if none) */
+    /* Second member's full name */
     "Andrew K Knittle",
     "andrk11@vt.edu",
 }; 
