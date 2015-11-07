@@ -30,6 +30,29 @@ struct block {
     char payload[0];            /* offset 4, at address 0 mod 8 */
 };
 
+/*
+ * A Struct used to hold all the explicit lists
+ * Each index will be based on powers of 2. 
+ * For example seg_list[1] starts at 32, seg_list[2]
+ * would be 64, and seg_list[3] would be 128, and so
+ * on.
+ * ANDREW KNITTLE (11/7/2015)
+ */
+struct segregated_list
+{
+	//The size of 5 is arbitrary
+	struct explicit_list segList[5];
+}
+
+/*
+ * A free list designed to hold blocks of certain sizes
+ * ANDREW KNITTLE (11/6/2015)
+ */
+struct explicit_list
+{
+	//list of free blocks
+	struct list eList;
+}
 /* Basic constants and macros */
 #define WSIZE       4       /* Word and header/footer size (bytes) */
 #define DSIZE       8       /* Doubleword size (bytes) */
@@ -38,10 +61,9 @@ struct block {
 
 #define MAX(x, y) ((x) > (y)? (x) : (y))  
 
-static 
-
 /* Global variables */
 static struct block *heap_listp = 0;  /* Pointer to first block */
+
 
 /* 
  * mm_init - Initialize the memory manager 
@@ -60,11 +82,9 @@ int mm_init(void)
      * and not prev_blk() - prev_blk() cannot be called on the left-most
      * block.
      */
-    initial[0] = FENCE;                     /* Prologue footer */
-    
+    initial[0] = FENCE;                     /* Prologue footer */    
     heap_listp = (struct block *)&initial[1];
     initial[1] = FENCE;                     /* Epilogue header */
-
 
     /* Extend the empty heap with a free block of CHUNKSIZE bytes */
     if (extend_heap(CHUNKSIZE) == NULL) 
@@ -72,6 +92,24 @@ int mm_init(void)
     return 0;
 }
 
+
+void mm_free(void *ptr)
+{	
+	// check if null
+	if (ptr == 0)
+	{
+		return;
+	}
+	// find block from user pointer
+	struct block *blk = bp - offsetof(struct block, payload);
+	if(heap_listp == 0)
+	{
+		mm_init();
+	}
+	mark_block_free(blk, blk_size(blk));
+	//everytime free will be called we coalesce
+	coalesce(blk);
+}
 
 team_t team = {
     /* Team name */
