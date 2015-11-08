@@ -45,6 +45,15 @@ struct free_block {
 };
 
 /*
+ * A free list designed to hold blocks of certain sizes
+ */
+struct explicit_list
+{
+	//list of free blocks
+	struct list eList;
+};
+
+/*
  * A Struct used to hold all the explicit lists
  * Each index will be based on powers of 2. 
  * For example seg_list[1] starts at 32, seg_list[2]
@@ -57,14 +66,7 @@ struct segregated_list
 	struct explicit_list segList[5];
 };
 
-/*
- * A free list designed to hold blocks of certain sizes
- */
-struct explicit_list
-{
-	//list of free blocks
-	struct list eList;
-};
+
 /* Basic constants and macros */
 #define WSIZE       4       /* Word and header/footer size (bytes) */
 #define DSIZE       8       /* Doubleword size (bytes) */
@@ -78,8 +80,8 @@ static struct explicit_list *list;
 
 
 /* Function prototypes for internal helper routines */
-static void *extendHeap(size_t words);
-static struct free_block *coalesce(struct block *bp);
+static struct free_block *extend_heap(size_t words);
+static struct free_block *coalesce(struct free_block *bp);
 
 
 /* Return size of block is free */
@@ -116,6 +118,12 @@ static struct free_block *next_blk(struct free_block *blk) {
     return (struct free_block *)((size_t *)blk + blk->header.size);
 }
 
+/* Given a block, obtain its footer boundary tag */
+static struct boundary_tag * get_footer(struct free_block *blk) {
+    return (void *)((size_t *)blk + blk->header.size) 
+                   - sizeof(struct boundary_tag);
+}
+
 /* Mark a block as free and set its size. */
 static void mark_block_free(struct free_block *blk, int size) {
     blk->header.inuse = 0;
@@ -130,7 +138,7 @@ static void mark_block_free(struct free_block *blk, int size) {
 int mm_init(void) 
 {
 	/* Create the initial empty free explicit list */
-	list_init(list);
+	list_init(&list->eList);
 	
     /* Create the initial empty heap */
     struct boundary_tag * initial = mem_sbrk(2 * sizeof(struct boundary_tag));
@@ -138,7 +146,7 @@ int mm_init(void)
         return -1;
 
     initial[0] = FENCE;                     /* Prologue footer */    
-    list_push_back(list, &((struct free_block *)&initial[1])->elem);
+    list_push_back(&list->eList, &((struct free_block *)&initial[1])->elem);
     initial[1] = FENCE;                     /* Epilogue header */
 
     /* Extend the empty heap with a free block of CHUNKSIZE bytes */
@@ -147,9 +155,15 @@ int mm_init(void)
     return 0;
 }
 
+void *mm_malloc (size_t size)
+{
+	return NULL;
+}
+
 
 void mm_free(void *ptr)
 {	
+	/*
 	// check if null
 	if (ptr == 0)
 	{
@@ -164,6 +178,7 @@ void mm_free(void *ptr)
 	mark_block_free(blk, blk_size(blk));
 	//everytime free will be called we coalesce
 	coalesce(blk);
+	*/
 }
 
 
@@ -182,7 +197,7 @@ static struct free_block *coalesce(struct free_block *bp)
     else if (prev_alloc && !next_alloc) {      /* Case 2 */
 		//Combine two free blocks, remove next block from the list, push this block to the list
         mark_block_free(bp, size + blk_size(next_blk(bp)));
-        list_push_back(list, &bp->elem);
+        list_push_back(&list->eList, &bp->elem);
         list_remove(&next_blk(bp)->elem);
     }
 
@@ -200,6 +215,11 @@ static struct free_block *coalesce(struct free_block *bp)
         bp = prev_blk(bp);
     }
     return bp;
+}
+
+void *mm_realloc(void *ptr, size_t size)
+{
+	return NULL;
 }
 
 /* 
