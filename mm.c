@@ -184,7 +184,6 @@ void *mm_malloc (size_t size)
 
 void mm_free(void *ptr)
 {	
-	/*
 	// check if null
 	if (ptr == 0)
 	{
@@ -199,7 +198,6 @@ void mm_free(void *ptr)
 	mark_block_free(blk, blk_size(blk));
 	//everytime free will be called we coalesce
 	coalesce(blk);
-	*/
 }
 
 
