@@ -295,7 +295,7 @@ static void *find_fit(size_t asize)
 	struct free_block *bp;
 	struct list_elem * e = list_begin (&elist);
 	for (; e!= list_end (&elist); e = list_next (e)) {
-		bp = (struct free_block *)((size_t *)e - offsetof(struct free_block, elem));
+		bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
 		if (blk_size(bp) >= asize) return bp;
 	}
 	return NULL;
@@ -354,7 +354,7 @@ static void print_list()
 	struct free_block *bp;
 	struct list_elem * e = list_begin (&elist);
 	for (; e!= list_end (&elist); e = list_next (e)) {
-		bp = (struct free_block *)((size_t *)e - offsetof(struct free_block, elem));
+		bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
 		printf("%s block at %p with size %d\n",
 			(bp->header.inuse)?"Used":"Free", bp, bp->header.size);
 	}
