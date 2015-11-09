@@ -44,14 +44,6 @@ struct free_block {
     char payload[0];            /* offset 4, at address 0 mod 8 */
 };
 
-/*
- * A free list designed to hold blocks of certain sizes
- */
-struct explicit_list
-{
-	//list of free blocks
-	struct list eList;
-};
 
 /*
  * A Struct used to hold all the explicit lists
@@ -63,7 +55,7 @@ struct explicit_list
 struct segregated_list
 {
 	//The size of 5 is arbitrary
-	struct explicit_list segList[5];
+	struct list segList[5];
 };
 
 
@@ -76,12 +68,13 @@ struct segregated_list
 #define MAX(x, y) ((x) > (y)? (x) : (y))  
 
 /* Global variables */
-static struct explicit_list *list;		
+static struct list elist;		
 
 
 /* Function prototypes for internal helper routines */
 static struct free_block *extend_heap(size_t words);
 static struct free_block *coalesce(struct free_block *bp);
+static void *find_fit();
 
 
 /* Return size of block is free */
@@ -138,7 +131,7 @@ static void mark_block_free(struct free_block *blk, int size) {
 int mm_init(void) 
 {
 	/* Create the initial empty free explicit list */
-	list_init(&list->eList);
+	list_init(&elist);
 	
     /* Create the initial empty heap */
     struct boundary_tag * initial = mem_sbrk(2 * sizeof(struct boundary_tag));
@@ -146,7 +139,7 @@ int mm_init(void)
         return -1;
 
     initial[0] = FENCE;                     /* Prologue footer */    
-    list_push_back(&list->eList, &((struct free_block *)&initial[1])->elem);
+    list_push_back(&elist, &((struct free_block *)&initial[1])->elem);
     initial[1] = FENCE;                     /* Epilogue header */
 
     /* Extend the empty heap with a free block of CHUNKSIZE bytes */
@@ -157,7 +150,35 @@ int mm_init(void)
 
 void *mm_malloc (size_t size)
 {
-	return NULL;
+	size_t awords;      /* Adjusted block size in words */
+    size_t extendwords;  /* Amount to extend heap if no fit */
+    struct used_block *bp;      
+
+    if (list->eList == NULL){
+        mm_init();
+    }
+    /* Ignore spurious requests */
+    if (size == 0)
+        return NULL;
+
+    /* Adjust block size to include overhead and alignment reqs. */
+    size += 2 * sizeof(struct boundary_tag);    /* account for tags */
+    size = (size + DSIZE - 1) & ~(DSIZE - 1);   /* align to double word */
+    awords = MAX(MIN_BLOCK_SIZE_WORDS, size/WSIZE);
+                                                /* respect minimum size */
+
+    /* Search the free list for a fit */
+    if ((bp = find_fit(awords)) != NULL) {
+        place(bp, awords);
+        return bp->payload;
+    }
+
+    /* No fit found. Get more memory and place the block */
+    extendwords = MAX(awords,CHUNKSIZE);
+    if ((bp = extend_heap(extendwords)) == NULL)  
+        return NULL;
+    place(bp, awords);
+    return bp->payload;
 }
 
 
@@ -192,12 +213,14 @@ static struct free_block *coalesce(struct free_block *bp)
     size_t size = blk_size(bp);
 
     if (prev_alloc && next_alloc) {            /* Case 1 */
+		//Push this block to the list
+		list_push_back(&elist, &bp->elem);
     }
 
     else if (prev_alloc && !next_alloc) {      /* Case 2 */
 		//Combine two free blocks, remove next block from the list, push this block to the list
         mark_block_free(bp, size + blk_size(next_blk(bp)));
-        list_push_back(&list->eList, &bp->elem);
+        list_push_back(&elist, &bp->elem);
         list_remove(&next_blk(bp)->elem);
     }
 
@@ -221,6 +244,12 @@ void *mm_realloc(void *ptr, size_t size)
 {
 	return NULL;
 }
+
+static void *find_fit()
+{
+	return NULL;
+}
+
 
 /* 
  * extend_heap - Extend heap with free block and return its block pointer
