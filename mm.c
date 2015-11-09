@@ -147,12 +147,13 @@ int mm_init(void)
         return -1;
 
     initial[0] = FENCE;                     /* Prologue footer */    
-    list_push_back(&elist, &((struct free_block *)&initial[1])->elem);
     initial[1] = FENCE;                     /* Epilogue header */
 
     /* Extend the empty heap with a free block of CHUNKSIZE bytes */
-    if (extend_heap(CHUNKSIZE) == NULL) 
+    struct free_block *bp = extend_heap(CHUNKSIZE);
+    if (bp == NULL) 
         return -1;
+    list_push_back(&elist, &bp->elem);
     return 0;
 }
 
@@ -198,7 +199,7 @@ void mm_free(void *ptr)
 	}
 	// find block from user pointer
 	struct free_block *blk = ptr - offsetof(struct used_block, payload);
-	if(list !=  NULL)
+	if(elist.head.next ==  NULL)
 	{
 		mm_init();
 	}
@@ -250,13 +251,24 @@ void *mm_realloc(void *ptr, size_t size)
 	return NULL;
 }
 
+/*
+ * find_fit - Find the first fit block 
+ */
 static void *find_fit(size_t asize)
 {
+	struct free_block *bp;
+	struct list_elem * e = list_begin (&elist);
+	for (; e!= list_end (&elist); e = list_next (e)) {
+		bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag));
+		if (blk_size(bp) >= asize) return bp;
+	}
 	return NULL;
 }
 
-//Simply states the block given is being used
-//helper method for finding a properly sized block
+/* 
+ * place - Place block of asize words at start of free block bp 
+ *         and split if remainder would be at least minimum block size
+ */
 static void place(void *bp, size_t asize)
 {
 	//ROUGH DRAFT: based off Back's code
