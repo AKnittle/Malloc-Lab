@@ -243,6 +243,9 @@ void *mm_realloc(void *ptr, size_t size)
 	return NULL;
 }
 
+/*
+ * find_fit - Find the first fit 
+ */
 static void *find_fit(size_t asize)
 {
 	return NULL;
