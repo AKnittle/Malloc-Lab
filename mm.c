@@ -65,7 +65,8 @@ struct segregated_list
 #define MIN_BLOCK_SIZE_WORDS 4 /* Minimum block size in words */
 #define CHUNKSIZE  (1<<10)  /* Extend heap by this amount (words) */
 
-#define MAX(x, y) ((x) > (y)? (x) : (y))  
+#define MAX(x, y) ((x) > (y)? (x) : (y))
+#define MIN(x, y) ((x) < (y)? (x) : (y))
 
 /* Global variables */
 static struct list elist;		
@@ -118,7 +119,7 @@ static struct boundary_tag * get_footer(struct free_block *blk) {
                    - sizeof(struct boundary_tag);
 }
 /*Mark a block as used and set its size*/
-static void mark_block_used(struct block *blk, int size)
+static void mark_block_used(struct free_block *blk, int size)
 {
 	blk->header.inuse = 1;
 	blk->header.size = size;
@@ -248,7 +249,34 @@ static struct free_block *coalesce(struct free_block *bp)
 
 void *mm_realloc(void *ptr, size_t size)
 {
-	return NULL;
+	/* If the pointer block is NULL, realloc should be the same as malloc */
+	if (ptr == NULL) 
+		return mm_malloc(size);
+		
+	/* If the size if 0, free the block and return 0 */
+	if (size == 0) {
+		mm_free(ptr);
+		return NULL;
+	}
+	
+	size_t oldsize;
+    void *newptr = mm_malloc(size);
+
+    /* If malloc() fails, the original block is left untouched  */
+    if(!newptr) {
+        return 0;
+    }
+
+    /* Copy the old data. */
+    struct used_block *oldblock = ptr - offsetof(struct used_block, payload);
+    oldsize = (oldblock->header.size) * WSIZE;
+    memcpy(newptr, ptr, MIN(oldsize, size));
+
+    /* Free the old block. */
+    mm_free(ptr);
+
+    return newptr;
+	
 }
 
 /*
@@ -259,7 +287,7 @@ static void *find_fit(size_t asize)
 	struct free_block *bp;
 	struct list_elem * e = list_begin (&elist);
 	for (; e!= list_end (&elist); e = list_next (e)) {
-		bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag));
+		bp = (struct free_block *)((size_t *)e - offsetof(struct free_block, elem));
 		if (blk_size(bp) >= asize) return bp;
 	}
 	return NULL;
