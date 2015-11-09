@@ -74,7 +74,8 @@ static struct list elist;
 /* Function prototypes for internal helper routines */
 static struct free_block *extend_heap(size_t words);
 static struct free_block *coalesce(struct free_block *bp);
-static void *find_fit();
+static void *find_fit(size_t asize);
+static void place(void *bp, size_t asize);
 
 
 /* Return size of block is free */
@@ -154,7 +155,7 @@ void *mm_malloc (size_t size)
     size_t extendwords;  /* Amount to extend heap if no fit */
     struct used_block *bp;      
 
-    if (list->eList == NULL){
+    if (elist.head.next == NULL){
         mm_init();
     }
     /* Ignore spurious requests */
@@ -162,10 +163,9 @@ void *mm_malloc (size_t size)
         return NULL;
 
     /* Adjust block size to include overhead and alignment reqs. */
-    size += 2 * sizeof(struct boundary_tag);    /* account for tags */
-    size = (size + DSIZE - 1) & ~(DSIZE - 1);   /* align to double word */
-    awords = MAX(MIN_BLOCK_SIZE_WORDS, size/WSIZE);
-                                                /* respect minimum size */
+    size += 2 * sizeof(struct boundary_tag);    			/* account for tags */
+    size = (size + DSIZE - 1) & ~(DSIZE - 1);   			/* align to double word */
+    awords = MAX(MIN_BLOCK_SIZE_WORDS, size/WSIZE);			/* respect minimum size */
 
     /* Search the free list for a fit */
     if ((bp = find_fit(awords)) != NULL) {
@@ -175,7 +175,7 @@ void *mm_malloc (size_t size)
 
     /* No fit found. Get more memory and place the block */
     extendwords = MAX(awords,CHUNKSIZE);
-    if ((bp = extend_heap(extendwords)) == NULL)  
+    if ((bp = (void *)extend_heap(extendwords)) == NULL)  
         return NULL;
     place(bp, awords);
     return bp->payload;
@@ -243,9 +243,13 @@ void *mm_realloc(void *ptr, size_t size)
 	return NULL;
 }
 
-static void *find_fit()
+static void *find_fit(size_t asize)
 {
 	return NULL;
+}
+
+static void place(void *bp, size_t asize)
+{
 }
 
 
