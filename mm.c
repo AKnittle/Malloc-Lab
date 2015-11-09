@@ -77,6 +77,7 @@ static struct free_block *extend_heap(size_t words);
 static struct free_block *coalesce(struct free_block *bp);
 static void *find_fit(size_t asize);
 static void place(void *bp, size_t asize);
+static void print_list();
 
 
 /* Return size of block is free */
@@ -154,7 +155,9 @@ int mm_init(void)
     struct free_block *bp = extend_heap(CHUNKSIZE);
     if (bp == NULL) 
         return -1;
-    list_push_back(&elist, &bp->elem);
+    //list_push_back(&elist, &bp->elem);
+    printf("In mm_init: ");
+    print_list();
     return 0;
 }
 
@@ -187,6 +190,8 @@ void *mm_malloc (size_t size)
     if ((bp = (void *)extend_heap(extendwords)) == NULL)  
         return NULL;
     place(bp, awords);
+    printf("In mm_malloc: ");
+    print_list();
     return bp->payload;
 }
 
@@ -207,6 +212,8 @@ void mm_free(void *ptr)
 	mark_block_free(blk, blk_size(blk));
 	//everytime free will be called we coalesce
 	coalesce(blk);
+	printf("In mm_free: ");
+	print_list();
 }
 
 
@@ -274,7 +281,8 @@ void *mm_realloc(void *ptr, size_t size)
 
     /* Free the old block. */
     mm_free(ptr);
-
+    printf("In mm_realloc: ");
+	print_list();
     return newptr;
 	
 }
@@ -339,6 +347,17 @@ static struct free_block *extend_heap(size_t words)
 
     /* Coalesce if the previous block was free */
     return coalesce(blk);
+}
+
+static void print_list()
+{
+	struct free_block *bp;
+	struct list_elem * e = list_begin (&elist);
+	for (; e!= list_end (&elist); e = list_next (e)) {
+		bp = (struct free_block *)((size_t *)e - offsetof(struct free_block, elem));
+		printf("%s block at %p with size %d\n",
+			(bp->header.inuse)?"Used":"Free", bp, bp->header.size);
+	}
 }
 
 team_t team = {
