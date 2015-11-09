@@ -190,8 +190,8 @@ void mm_free(void *ptr)
 		return;
 	}
 	// find block from user pointer
-	struct free_block *blk = bp - offsetof(struct used_block, payload);
-	if(heap_listp == 0)
+	struct free_block *blk = ptr - offsetof(struct used_block, payload);
+	if(list !=  NULL)
 	{
 		mm_init();
 	}
