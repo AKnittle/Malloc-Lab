@@ -117,6 +117,13 @@ static struct boundary_tag * get_footer(struct free_block *blk) {
     return (void *)((size_t *)blk + blk->header.size) 
                    - sizeof(struct boundary_tag);
 }
+/*Mark a block as used and set its size*/
+static void mark_block_used(struct block *blk, int size)
+{
+	blk->header.inuse = 1;
+	blk->header.size = size;
+	* get_footer(blk) = blk->header;
+}
 
 /* Mark a block as free and set its size. */
 static void mark_block_free(struct free_block *blk, int size) {
@@ -248,8 +255,26 @@ static void *find_fit(size_t asize)
 	return NULL;
 }
 
+//Simply states the block given is being used
+//helper method for finding a properly sized block
 static void place(void *bp, size_t asize)
 {
+	//ROUGH DRAFT: based off Back's code
+	//first get the block size
+	size_t csize = blk_size(bp);
+	//Check if there's "extra space" 
+	if((csize - asize) >= MIN_BLOCK_SIZE_WORDS)
+	{
+		//Break up block, reducing fragmentation
+		mark_block_used(bp, asize);
+		bp = next_blk(bp);
+		mark_block_free(bp, csize-asize);
+	}
+	else
+	{
+		//Just the right size
+		mark_block_used(bp, csize);
+	}
 }
 
 
