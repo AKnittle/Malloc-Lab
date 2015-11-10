@@ -115,12 +115,12 @@ static struct free_block *next_blk(struct free_block *blk) {
 }
 
 /* Given a block, obtain its footer boundary tag */
-static struct boundary_tag * get_footer(struct free_block *blk) {
-    return (void *)((size_t *)blk + blk->header.size) 
+static struct boundary_tag * get_footer(void *blk) {
+    return (void *)((size_t *)blk + ((struct free_block*)blk)->header.size) 
                    - sizeof(struct boundary_tag);
 }
 /*Mark a block as used and set its size*/
-static void mark_block_used(struct free_block *blk, int size)
+static void mark_block_used(struct used_block *blk, int size)
 {
 	blk->header.inuse = 1;
 	blk->header.size = size;
@@ -165,7 +165,8 @@ void *mm_malloc (size_t size)
 {
 	size_t awords;      /* Adjusted block size in words */
     size_t extendwords;  /* Amount to extend heap if no fit */
-    struct used_block *bp;      
+    struct used_block *bp;
+    struct used_block *blk;      
 
     if (elist.head.next == NULL){
         mm_init();
@@ -181,7 +182,12 @@ void *mm_malloc (size_t size)
 
     /* Search the free list for a fit */
     if ((bp = find_fit(awords)) != NULL) {
-        place(bp, awords);
+		blk = bp;
+        place(blk, awords);
+        printf("In mm_malloc: ");
+		print_list();
+		printf("%s block at %p with size %d, payload is at %p\n",
+			(bp->header.inuse)?"Used":"Free", bp, bp->header.size, bp->payload);
         return bp->payload;
     }
 
@@ -189,9 +195,12 @@ void *mm_malloc (size_t size)
     extendwords = MAX(awords,CHUNKSIZE);
     if ((bp = (void *)extend_heap(extendwords)) == NULL)  
         return NULL;
-    place(bp, awords);
+    blk = bp;
+    place(blk, awords);
     printf("In mm_malloc: ");
     print_list();
+    printf("%s block at %p with size %d, payload is at %p\n",
+			(bp->header.inuse)?"Used":"Free", bp, bp->header.size, bp->payload);
     return bp->payload;
 }
 
@@ -233,9 +242,9 @@ static struct free_block *coalesce(struct free_block *bp)
 
     else if (prev_alloc && !next_alloc) {      /* Case 2 */
 		//Combine two free blocks, remove next block from the list, push this block to the list
-        mark_block_free(bp, size + blk_size(next_blk(bp)));
+		list_remove(&next_blk(bp)->elem);
+        mark_block_free(bp, size + blk_size(next_blk(bp)));        
         list_push_back(&elist, &bp->elem);
-        list_remove(&next_blk(bp)->elem);
     }
 
     else if (!prev_alloc && next_alloc) {      /* Case 3 */
@@ -246,9 +255,9 @@ static struct free_block *coalesce(struct free_block *bp)
 
     else {                                     /* Case 4 */
 		//Combine three free blocks, remove next block from the list
+		list_remove(&next_blk(bp)->elem);
         mark_block_free(prev_blk(bp), 
                         size + blk_size(next_blk(bp)) + blk_size(prev_blk(bp)));
-        list_remove(&next_blk(bp)->elem);
         bp = prev_blk(bp);
     }
     return bp;
@@ -307,6 +316,7 @@ static void *find_fit(size_t asize)
  */
 static void place(void *bp, size_t asize)
 {
+	
 	//ROUGH DRAFT: based off Back's code
 	//first get the block size
 	size_t csize = blk_size(bp);
@@ -314,13 +324,20 @@ static void place(void *bp, size_t asize)
 	if((csize - asize) >= MIN_BLOCK_SIZE_WORDS)
 	{
 		//Break up block, reducing fragmentation
-		mark_block_used(bp, asize);
-		bp = next_blk(bp);
-		mark_block_free(bp, csize-asize);
+		//Remove the used block from the list
+		//Add the second part into the list
+		//Correctly point to the next free block
+		list_remove(&((struct free_block*)bp)->elem);
+		mark_block_used((struct used_block*)bp, asize);
+		bp = ((size_t *)bp + ((struct used_block*)bp)->header.size);
+		mark_block_free((struct free_block*)bp, csize-asize);
+		list_push_back(&elist, &((struct free_block*)bp)->elem);
+		
 	}
 	else
 	{
 		//Just the right size
+		list_remove(&((struct free_block*)bp)->elem);
 		mark_block_used(bp, csize);
 	}
 }
@@ -352,12 +369,15 @@ static struct free_block *extend_heap(size_t words)
 static void print_list()
 {
 	struct free_block *bp;
-	struct list_elem * e = list_begin (&elist);
-	for (; e!= list_end (&elist); e = list_next (e)) {
-		bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
-		printf("%s block at %p with size %d\n",
-			(bp->header.inuse)?"Used":"Free", bp, bp->header.size);
+	if (!list_empty(&elist)) {
+		struct list_elem * e = list_begin (&elist);
+		for (; e!= list_end (&elist); e = list_next (e)) {
+			bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
+			printf("%s block at %p with size %d\n",
+				(bp->header.inuse)?"Used":"Free", bp, bp->header.size);
+		}
 	}
+	else printf("List is empty\n");
 }
 
 team_t team = {
