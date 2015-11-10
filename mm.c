@@ -70,7 +70,7 @@ struct segregated_list
 #define MIN(x, y) ((x) < (y)? (x) : (y))
 
 /* Global variables */
-static struct list elist;	
+//static struct list elist;	
 static struct list segList[NLISTS];	
 
 
@@ -312,15 +312,28 @@ void *mm_realloc(void *ptr, size_t size)
 }
 
 /*
- * find_fit - Find the first fit block 
+ * find_fit - Find the first fit block from the list containing the block
+ * with size larger than requesting
  */
 static void *find_fit(size_t asize)
-{
+{	
 	struct free_block *bp;
-	struct list_elem * e = list_begin (&elist);
-	for (; e!= list_end (&elist); e = list_next (e)) {
-		bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
-		if (blk_size(bp) >= asize) return bp;
+	int currentlist = 0;
+	size_t csize = asize;
+	// Search for the starting point
+	while ((currentlist < NLISTS - 1) && (csize > 1)) {
+		csize >>= 1;
+		currentlist++;
+	}
+	for (; currentlist < NLISTS; currentlist++) {
+		if (list_empty(&segList[currentlist])) continue;
+		
+		//Search within the list
+		struct list_elem * e = list_begin (&segList[currentlist]);
+			for (; e!= list_end (&segList[currentlist]); e = list_next (e)) {
+			bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
+			if (blk_size(bp) >= asize) return bp;
+		}
 	}
 	return NULL;
 }
