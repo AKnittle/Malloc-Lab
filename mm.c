@@ -64,12 +64,14 @@ struct segregated_list
 #define DSIZE       8       /* Doubleword size (bytes) */
 #define MIN_BLOCK_SIZE_WORDS 4 /* Minimum block size in words */
 #define CHUNKSIZE  (1<<10)  /* Extend heap by this amount (words) */
+#define NLISTS		20		/* Number of segregated free lists */
 
 #define MAX(x, y) ((x) > (y)? (x) : (y))
 #define MIN(x, y) ((x) < (y)? (x) : (y))
 
 /* Global variables */
-static struct list elist;		
+static struct list elist;	
+static struct list segList[NLISTS];	
 
 
 /* Function prototypes for internal helper routines */
@@ -77,7 +79,8 @@ static struct free_block *extend_heap(size_t words);
 static struct free_block *coalesce(struct free_block *bp);
 static void *find_fit(size_t asize);
 static void place(void *bp, size_t asize);
-static void print_list();
+static void insert(void *bp, size_t asize);
+//static void print_list();
 
 
 /* Return size of block is free */
@@ -134,14 +137,20 @@ static void mark_block_free(struct free_block *blk, int size) {
     * get_footer(blk) = blk->header;    /* Copy header to footer */
 }
 
+/* Initialize all segregated free lists */
+static void init_lists() {
+	int count = 0;
+	for (; count < NLISTS; count++) list_init(&segList[count]);
+}
+
 
 /* 
  * mm_init - Initialize the memory manager 
  */
 int mm_init(void) 
 {
-	/* Create the initial empty free explicit list */
-	list_init(&elist);
+	/* Initial all segregated free explicit list */
+	init_lists();
 	
     /* Create the initial empty heap */
     struct boundary_tag * initial = mem_sbrk(2 * sizeof(struct boundary_tag));
@@ -156,8 +165,8 @@ int mm_init(void)
     if (bp == NULL) 
         return -1;
     //list_push_back(&elist, &bp->elem);
-    printf("In mm_init: ");
-    print_list();
+    //printf("In mm_init: ");
+    //print_list();
     return 0;
 }
 
@@ -168,7 +177,7 @@ void *mm_malloc (size_t size)
     struct used_block *bp;
     struct used_block *blk;      
 
-    if (elist.head.next == NULL){
+    if (segList[0].head.next == NULL){
         mm_init();
     }
     /* Ignore spurious requests */
@@ -184,10 +193,10 @@ void *mm_malloc (size_t size)
     if ((bp = find_fit(awords)) != NULL) {
 		blk = bp;
         place(blk, awords);
-        printf("In mm_malloc: ");
-		print_list();
-		printf("%s block at %p with size %d, payload is at %p\n",
-			(bp->header.inuse)?"Used":"Free", bp, bp->header.size, bp->payload);
+        //printf("In mm_malloc: ");
+		//print_list();
+		//printf("%s block at %p with size %d, payload is at %p\n",
+			//(bp->header.inuse)?"Used":"Free", bp, bp->header.size, bp->payload);
         return bp->payload;
     }
 
@@ -197,10 +206,10 @@ void *mm_malloc (size_t size)
         return NULL;
     blk = bp;
     place(blk, awords);
-    printf("In mm_malloc: ");
-    print_list();
-    printf("%s block at %p with size %d, payload is at %p\n",
-			(bp->header.inuse)?"Used":"Free", bp, bp->header.size, bp->payload);
+    //printf("In mm_malloc: ");
+    //print_list();
+    //printf("%s block at %p with size %d, payload is at %p\n",
+			//(bp->header.inuse)?"Used":"Free", bp, bp->header.size, bp->payload);
     return bp->payload;
 }
 
@@ -214,15 +223,15 @@ void mm_free(void *ptr)
 	}
 	// find block from user pointer
 	struct free_block *blk = ptr - offsetof(struct used_block, payload);
-	if(elist.head.next ==  NULL)
+	if(segList[0].head.next ==  NULL)
 	{
 		mm_init();
 	}
 	mark_block_free(blk, blk_size(blk));
 	//everytime free will be called we coalesce
 	coalesce(blk);
-	printf("In mm_free: ");
-	print_list();
+	//printf("In mm_free: ");
+	//print_list();
 }
 
 
@@ -237,28 +246,34 @@ static struct free_block *coalesce(struct free_block *bp)
 
     if (prev_alloc && next_alloc) {            /* Case 1 */
 		//Push this block to the list
-		list_push_back(&elist, &bp->elem);
+		insert(bp, size);
     }
 
     else if (prev_alloc && !next_alloc) {      /* Case 2 */
-		//Combine two free blocks, remove next block from the list, push this block to the list
+		//Combine two free blocks, remove next block from the list, push new block to the list
 		list_remove(&next_blk(bp)->elem);
         mark_block_free(bp, size + blk_size(next_blk(bp)));        
-        list_push_back(&elist, &bp->elem);
+        insert(bp, blk_size(bp));
     }
 
     else if (!prev_alloc && next_alloc) {      /* Case 3 */
-		//Combine two free blocks, do not need to modify the list
+		//Combine two free blocks, remove the previous block from a list
+		//INser the new block into appropriate list
         bp = prev_blk(bp);
+        list_remove(&bp->elem);
         mark_block_free(bp, size + blk_size(bp));
+        insert(bp, blk_size(bp));
     }
 
     else {                                     /* Case 4 */
-		//Combine three free blocks, remove next block from the list
+		//Combine three free blocks, remove both previous and next block from their list
+		//Insert the new blcok into appropriate list
 		list_remove(&next_blk(bp)->elem);
+		list_remove(&prev_blk(bp)->elem);
         mark_block_free(prev_blk(bp), 
                         size + blk_size(next_blk(bp)) + blk_size(prev_blk(bp)));
         bp = prev_blk(bp);
+        insert(bp, blk_size(bp));
     }
     return bp;
 }
@@ -290,8 +305,8 @@ void *mm_realloc(void *ptr, size_t size)
 
     /* Free the old block. */
     mm_free(ptr);
-    printf("In mm_realloc: ");
-	print_list();
+    //printf("In mm_realloc: ");
+	//print_list();
     return newptr;
 	
 }
@@ -316,22 +331,21 @@ static void *find_fit(size_t asize)
  */
 static void place(void *bp, size_t asize)
 {
-	
-	//ROUGH DRAFT: based off Back's code
 	//first get the block size
 	size_t csize = blk_size(bp);
 	//Check if there's "extra space" 
 	if((csize - asize) >= MIN_BLOCK_SIZE_WORDS)
 	{
 		//Break up block, reducing fragmentation
-		//Remove the used block from the list
-		//Add the second part into the list
-		//Correctly point to the next free block
-		list_remove(&((struct free_block*)bp)->elem);
+		
+		//Remove the original block, mark first part as used
+		list_remove(&((struct free_block*)bp)->elem);		
 		mark_block_used((struct used_block*)bp, asize);
+		
+		// Mark the remaind block as free and insert to appropriate list
 		bp = ((size_t *)bp + ((struct used_block*)bp)->header.size);
-		mark_block_free((struct free_block*)bp, csize-asize);
-		list_push_back(&elist, &((struct free_block*)bp)->elem);
+		mark_block_free((struct free_block*)bp, csize-asize);		
+		insert(bp, blk_size(bp));
 		
 	}
 	else
@@ -366,7 +380,26 @@ static struct free_block *extend_heap(size_t words)
     return coalesce(blk);
 }
 
-static void print_list()
+/*
+ * insert - Insert a block pointer into an appropriate segregated list. 
+ * 			The n-th list spanning byte sizes from 2^n to 2^(n+1)-1.
+ * 			The new block will be push to the front of the list.
+ */
+static void insert(void *bp, size_t asize)
+{
+	int count = 0;
+	struct list_elem *e = &((struct free_block*)bp)->elem;
+	
+	// Choosing a list with the appropriate size range
+	while ((count < NLISTS - 1) && (asize > 1)) {
+		asize >>= 1;
+		count++;
+	}
+	list_push_front(&segList[count], e);
+	
+}
+
+/*static void print_list()
 {
 	struct free_block *bp;
 	if (!list_empty(&elist)) {
@@ -378,7 +411,7 @@ static void print_list()
 		}
 	}
 	else printf("List is empty\n");
-}
+}*/
 
 team_t team = {
     /* Team name */
