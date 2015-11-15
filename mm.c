@@ -515,8 +515,7 @@ static int mm_check(void)
 	//check_inList() - Jue
 	
 	/* Check if each block in the heap are back to back */
-	//check_cont() - Jue						
-	
+	//check_cont() - Jue	
 	
 			
 	return 0;
