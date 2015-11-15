@@ -1,3 +1,15 @@
+/* 
+ * Simple, 32-bit allocator based on segregated free
+ * lists, first fit placement, and boundary tag coalescing.
+ * Blocks must be aligned to doubleword (8 byte) boundaries. 
+ * Minimum block size is 16 bytes. 
+ *
+ * The segregated list is organized based on free lists size,
+ * segList[n] should contain free lists ranging from size 2^n
+ * to 2^(n+1) - 1. Each segregated list is ordered by the list size.
+ * 
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -45,19 +57,6 @@ struct free_block {
 };
 
 
-/*
- * A Struct used to hold all the explicit lists
- * Each index will be based on powers of 2. 
- * For example seg_list[1] starts at 32, seg_list[2]
- * would be 64, and seg_list[3] would be 128, and so
- * on.
- */
-struct segregated_list
-{
-	//The size of 5 is arbitrary
-	struct list segList[5];
-};
-
 
 /* Basic constants and macros */
 #define WSIZE       4       /* Word and header/footer size (bytes) */
@@ -76,8 +75,7 @@ struct segregated_list
 //#define DEBUG
 
 
-/* Global variables */
-//static struct list elist;	
+/* Global variables */	
 static struct list segList[NLISTS];	
 
 
@@ -87,6 +85,7 @@ static struct free_block *coalesce(struct free_block *bp);
 static void *find_fit(size_t asize);
 static void *place(void *bp, size_t asize);
 static void insert(void *bp, size_t asize);
+static int mm_check(void);
 #ifdef DEBUG
 static void print_list(struct list *elist, int n);
 static void print_seg();
@@ -490,6 +489,14 @@ static struct free_block *extend_heap(size_t words)
 
     /* Coalesce if the previous block was free */
     return coalesce(blk);
+}
+
+/* 
+ * checkheap - 
+ */
+static int mm_check(void)  
+{ 
+	return 0;
 }
 
 /*
