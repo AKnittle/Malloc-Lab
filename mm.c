@@ -74,6 +74,8 @@ struct free_block {
  */
 //#define DEBUG
 
+//#define CHECKHEAP
+
 
 /* Global variables */	
 static struct list segList[NLISTS];	
@@ -85,7 +87,9 @@ static struct free_block *coalesce(struct free_block *bp);
 static void *find_fit(size_t asize);
 static void *place(void *bp, size_t asize);
 static void insert(void *bp, size_t asize);
+#ifdef CHECKHEAP
 static int mm_check(void);
+#endif
 #ifdef DEBUG
 static void print_list(struct list *elist, int n);
 static void print_seg();
@@ -491,6 +495,7 @@ static struct free_block *extend_heap(size_t words)
     return coalesce(blk);
 }
 
+#ifdef CHECKHEAP
 /* 
  * checkheap - 
  */
@@ -498,6 +503,7 @@ static int mm_check(void)
 { 
 	return 0;
 }
+#endif
 
 /*
  * insert - Insert a block pointer into an appropriate segregated list. 
