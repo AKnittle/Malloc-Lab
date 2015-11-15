@@ -74,7 +74,7 @@ struct free_block {
  */
 //#define DEBUG
 
-//#define CHECKHEAP
+#define CHECKHEAP
 
 
 /* Global variables */	
@@ -89,6 +89,10 @@ static void *place(void *bp, size_t asize);
 static void insert(void *bp, size_t asize);
 #ifdef CHECKHEAP
 static int mm_check(void);
+static bool check_list_mark();
+static bool check_coalescing();
+static bool check_inList();
+static bool check_cont();
 #endif
 #ifdef DEBUG
 static void print_list(struct list *elist, int n);
@@ -501,8 +505,48 @@ static struct free_block *extend_heap(size_t words)
  */
 static int mm_check(void)  
 { 
+	/* Check if every block in the free list is marked as free? */
+	//check_list_mark() - Jue
+	
+	/* Check if there are any contiguous free blocks that somehow escaped coalescing? */
+	//check_coalescing() - Jue
+	
+	/* Check if every free block actually is in the free list? */
+	//check_inList() - Jue
+	
+	/* Check if each block in the heap are back to back */
+	//check_cont() - Jue						
+	
+	
+			
 	return 0;
 }
+
+/* Check if every block in the free list is marked as free? */
+static bool check_list_mark()
+{
+	return true;
+}
+
+/* Check if there are any contiguous free blocks that somehow escaped coalescing? */
+static bool check_coalescing()
+{
+	return true;
+}
+
+/* Check if every free block actually is in the free list? */
+static bool check_inList()
+{
+	return true;
+}
+
+/* Check if each block in the heap are back to back */
+static bool check_cont()
+{
+	return true;
+}
+
+
 #endif
 
 /*
