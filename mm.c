@@ -580,9 +580,27 @@ static void print_heap()
 	{
 		printf("%dth %s block with size %d\n", 
 			count, (n->header.inuse)?"Used":"Free", blk_size(n));
-		count++;
+i		count++;
 	}
 	
+}
+
+/*
+ * Checking if pointers in a heap block points to valid heap addresses
+ */
+static bool valid_heap_address()
+{
+	//Andrew: UNDER CONSTRUCTION
+	struct free_block * start = mem_heap_lo();
+        struct free_block * n = start + sizeof(struct boundary_tag);
+        int count = 0;
+        for (; !is_fence(n); n = n + blk_size(n))
+        {
+                printf("%dth %s block with size %d\n",
+                        count, (n->header.inuse)?"Used":"Free", blk_size(n));
+i               count++;
+        }
+
 }
 
 #endif
