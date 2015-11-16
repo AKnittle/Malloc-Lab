@@ -22,6 +22,7 @@
 #include "memlib.h"
 #include "list.h"
 
+//STRUCTS: ------------------------------------------------
 struct boundary_tag {
     int inuse:1;        // inuse bit
     int size:31;        // size of block, in words
@@ -33,9 +34,7 @@ const struct boundary_tag FENCE = {
 	.size = 0 
 };
 
-/* A C struct describing the beginning of each block. 
- * For implicit lists, used and free blocks have the same 
- * structure, so one struct will suffice for this example.
+/* A block filled in with a payload
  * If each block is aligned at 4 mod 8, each payload will
  * be aligned at 0 mod 8.
  */
@@ -44,9 +43,9 @@ struct used_block {
     char payload[0];            /* offset 4, at address 0 mod 8 */
 };
 
-/* A C struct describing the beginning of each block. 
- * For implicit lists, used and free blocks have the same 
- * structure, so one struct will suffice for this example.
+/* A block that has no filled in payload, and contains pointers
+ * (where the payload will be located) to the next and previous
+ * free blocks
  * If each block is aligned at 4 mod 8, each payload will
  * be aligned at 0 mod 8.
  */
@@ -55,7 +54,7 @@ struct free_block {
     struct list_elem elem;		/* Double linked list elem in free block*/
     char payload[0];            /* offset 4, at address 0 mod 8 */
 };
-
+//--------------------------------------------------------
 
 
 /* Basic constants and macros */
@@ -89,10 +88,11 @@ static void *place(void *bp, size_t asize);
 static void insert(void *bp, size_t asize);
 #ifdef CHECKHEAP
 static int mm_check(void);
-static bool check_list_mark();
+//static bool check_list_mark(); TODO: IMPLEMENT
 static bool check_coalescing();
 static bool check_inList();
 static bool check_cont();
+static bool valid_heap_address();
 #endif
 #ifdef DEBUG
 static void print_list(struct list *elist, int n);
@@ -192,6 +192,7 @@ int mm_init(void)
     struct free_block *bp = extend_heap(CHUNKSIZE);
     if (bp == NULL) 
         return -1;
+    mm_check();
     return 0;
 }
 
@@ -506,28 +507,20 @@ static struct free_block *extend_heap(size_t words)
 static int mm_check(void)  
 { 
 	/* Check if every block in the free list is marked as free? */
-	//check_list_mark() - Jue
+	//check_list_mark(); //- Jue
 	
 	/* Check if there are any contiguous free blocks that somehow escaped coalescing? */
-	//check_coalescing() - Jue
+	check_coalescing(); //- Jue
 	
 	/* Check if every free block actually is in the free list? */
-	//check_inList() - Jue
+	check_inList(); //- Jue
 	
 	/* Check if each block in the heap are back to back */
-	//check_cont() - Jue						
+	check_cont(); //- Jue
 	
-	
-			
+	valid_heap_address(); // - Andrew
 	return 0;
-}
-
-/* Check if every block in the free list is marked as free? */
-static bool check_list_mark()
-{
-	return true;
-}
-
+}						
 /* Check if there are any contiguous free blocks that somehow escaped coalescing? */
 static bool check_coalescing()
 {
@@ -544,6 +537,25 @@ static bool check_inList()
 static bool check_cont()
 {
 	return true;
+}
+
+static bool valid_heap_address()
+{
+        //Andrew: UNDER CONSTRUCTION
+        struct free_block * start = mem_heap_lo();
+        struct free_block * end = mem_heap_hi();
+        struct free_block * n = start + sizeof(struct boundary_tag);
+        int count = 0;
+        for (; !is_fence(n); n = n + blk_size(n))
+        {
+                //check if between addresses of low and high of heap
+                if(!(start < n) || !(n > end))
+                {
+                        return false;
+                }
+               count++;
+        }
+        return true;
 }
 
 
@@ -631,22 +643,26 @@ i		count++;
 
 /*
  * Checking if pointers in a heap block points to valid heap addresses
- */
+
 static bool valid_heap_address()
 {
-	//Andrew: UNDER CONSTRUCTION
+	Andrew: UNDER CONSTRUCTION
 	struct free_block * start = mem_heap_lo();
+	struct free_block * end = mem_heap_hi();
         struct free_block * n = start + sizeof(struct boundary_tag);
         int count = 0;
         for (; !is_fence(n); n = n + blk_size(n))
         {
-                printf("%dth %s block with size %d\n",
-                        count, (n->header.inuse)?"Used":"Free", blk_size(n));
+		check if between addresses of low and high of heap
+                if(!(start < n) || !(n > end))
+		{
+			retrun false;
+		}
 i               count++;
         }
-
+	return true;
 }
-
+*/
 #endif
 
 team_t team = {
