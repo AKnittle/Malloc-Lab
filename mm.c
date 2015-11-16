@@ -85,6 +85,7 @@ static int frequency_counter[5][2];
 
 /* Function prototypes for internal helper routines */
 static struct free_block *extend_heap(size_t words);
+static struct free_block *smart_extend(size_t words);
 static struct free_block *coalesce(struct free_block *bp);
 static void *find_fit(size_t asize);
 static void *place(void *bp, size_t asize);
@@ -224,6 +225,17 @@ void *mm_malloc (size_t size)
     size += 2 * sizeof(struct boundary_tag);    			/* account for tags */
     size = (size + DSIZE - 1) & ~(DSIZE - 1);   			/* align to double word */
     awords = MAX(MIN_BLOCK_SIZE_WORDS, size/WSIZE);			/* respect minimum size */
+    
+    push_occur(awords);
+    int idx = in_counter(awords);
+    if (idx != -1) {
+		count = frequency_counter[idx][1];
+		if (count > 10) {
+			smart_extend(awords);
+			frequency_counter[idx][1] = 1;
+		}
+	}
+    
 
     /* Search the free list for a fit */
     if ((bp = find_fit(awords)) != NULL) {
@@ -496,6 +508,28 @@ static struct free_block *extend_heap(size_t words)
 
     /* Coalesce if the previous block was free */
     return coalesce(blk);
+}
+
+static struct free_block *smart_extend(size_t words)
+{
+	void *bp	
+	
+	/* Allocate an even number of words to maintain alignment */
+    words = (words + 1) & ~1;
+    if (words < MIN_BLOCK_SIZE_WORDS) words = MIN_BLOCK_SIZE_WORDS;
+    if ((long)(bp = mem_sbrk(words * WSIZE * 10)) == -1)  
+        return NULL; 
+        
+    /* Initialize free block header/footer and the epilogue header.
+     * Note that we scoop up the previous epilogue here. */
+    struct free_block * blk = bp - sizeof(FENCE);
+    int i = 0;
+    for (; i < 10; i++) {
+		mark_block_free(blk, words);
+		insert(blk, words);
+		blk = next_blk(blk);
+	}
+    next_blk(blk)->header = FENCE;
 }
 
 #ifdef CHECKHEAP
