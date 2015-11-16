@@ -73,9 +73,9 @@ struct free_block {
 /*
  * If DEBUG defined enable printf's and print functions
  */
-//#define DEBUG
+#define DEBUG
 
-//#define CHECKHEAP
+#define CHECKHEAP
 
 
 /* Global variables */	
@@ -85,7 +85,7 @@ static int frequency_counter[5][2];
 
 /* Function prototypes for internal helper routines */
 static struct free_block *extend_heap(size_t words);
-static struct free_block *smart_extend(size_t words);
+static void smart_extend(size_t words);
 static struct free_block *coalesce(struct free_block *bp);
 static void *find_fit(size_t asize);
 static void *place(void *bp, size_t asize);
@@ -188,7 +188,7 @@ static int in_counter(int size)
 		{
 			// found the value, increment amount of times
 			// it has appeared.
-			frequency_counter[index][1]++;
+			//frequency_counter[index][1]++;
 			// return location of value
 			return index;
 		}
@@ -199,14 +199,14 @@ static int in_counter(int size)
 
 // Returns index with the smallest amount of occurences
 // in the matrix
-static void min_occur(int size)
+/*static void min_occur(int size)
 {
 	int index;
 	for(index = 0; index < 5; index++)
 	{
 		if(size
 	}
-}
+}*/
 
 // Adds a new value into the matrix, if there is space, and increments
 // the counter of a value if that value is already within the matrix 
@@ -215,9 +215,18 @@ static void push_occur(int size)
 	int index = in_counter(size);
 	if(index == -1)
 	{
-		min_occur(size);
-		return;
+		//min_occur(size);
+		//return;
+		int i = 0;
+		for (; i < 5; i++) {
+			if (frequency_counter[i][0] == 0) {
+				frequency_counter[i][0] = size;
+				frequency_counter[i][1] = 1;
+				return;
+			}
+		}
 	}
+	else frequency_counter[index][1]++;
 }
 
 
@@ -228,6 +237,11 @@ int mm_init(void)
 {
 	/* Initial all segregated free explicit list */
 	init_lists();
+	frequency_counter[0][0] = 0;
+	frequency_counter[1][0] = 0;
+	frequency_counter[2][0] = 0;
+	frequency_counter[3][0] = 0;
+	frequency_counter[4][0] = 0;
 	
     /* Create the initial empty heap */
     struct boundary_tag * initial = mem_sbrk(2 * sizeof(struct boundary_tag));
@@ -267,7 +281,7 @@ void *mm_malloc (size_t size)
     push_occur(awords);
     int idx = in_counter(awords);
     if (idx != -1) {
-		count = frequency_counter[idx][1];
+		int count = frequency_counter[idx][1];
 		if (count > 10) {
 			smart_extend(awords);
 			frequency_counter[idx][1] = 1;
@@ -548,15 +562,15 @@ static struct free_block *extend_heap(size_t words)
     return coalesce(blk);
 }
 
-static struct free_block *smart_extend(size_t words)
+static void smart_extend(size_t words)
 {
-	void *bp	
+	void *bp;	
 	
 	/* Allocate an even number of words to maintain alignment */
     words = (words + 1) & ~1;
     if (words < MIN_BLOCK_SIZE_WORDS) words = MIN_BLOCK_SIZE_WORDS;
     if ((long)(bp = mem_sbrk(words * WSIZE * 10)) == -1)  
-        return NULL; 
+        return; 
         
     /* Initialize free block header/footer and the epilogue header.
      * Note that we scoop up the previous epilogue here. */
