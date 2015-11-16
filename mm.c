@@ -742,9 +742,9 @@ static void print_list(struct list *elist, int n)
 	struct free_block *bp;
 	if (!list_empty(elist)) {
 		struct list_elem * e = list_begin (elist);
+		printf("In segList[%d]: \n", n);
 		for (; e!= list_end (elist); e = list_next (e)) {
 			bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
-			printf("In segList[%d]: \n", n);
 			printf("%s block at %p with size %d\n",
 				(bp->header.inuse)?"Used":"Free", bp, bp->header.size);
 		}
@@ -772,8 +772,8 @@ static void print_heap()
 	int count = 0;
 	for (; !is_fence(n); n = (struct free_block *)((size_t *)n + blk_size(n)))
 	{
-		printf("%dth %s block with size %d\n", 
-			count, (n->header.inuse)?"Used":"Free", blk_size(n));
+		printf("%dth %s block at %p with size %d\n", 
+			count, (n->header.inuse)?"Used":"Free", n, blk_size(n));
 		count++;
 	}
 	
