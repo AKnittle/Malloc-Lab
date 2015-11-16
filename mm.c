@@ -54,6 +54,8 @@ struct free_block {
     struct list_elem elem;		/* Double linked list elem in free block*/
     char payload[0];            /* offset 4, at address 0 mod 8 */
 };
+
+
 //--------------------------------------------------------
 
 
@@ -71,13 +73,14 @@ struct free_block {
 /*
  * If DEBUG defined enable printf's and print functions
  */
-#define DEBUG
+//#define DEBUG
 
-#define CHECKHEAP
+//#define CHECKHEAP
 
 
 /* Global variables */	
 static struct list segList[NLISTS];	
+static int frequency_counter[5][2];
 
 
 /* Function prototypes for internal helper routines */
