@@ -195,9 +195,7 @@ int mm_init(void)
     struct free_block *bp = extend_heap(CHUNKSIZE);
     if (bp == NULL) 
         return -1;
-   //TODO: GET RID OF THIS LINE! ONLY TO FOR TEST
-    mm_check();
-   //TODO: --------------------------------------
+
     return 0;
 }
 
