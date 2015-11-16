@@ -71,7 +71,7 @@ struct free_block {
 /*
  * If DEBUG defined enable printf's and print functions
  */
-//#define DEBUG
+#define DEBUG
 
 #define CHECKHEAP
 
@@ -88,7 +88,7 @@ static void *place(void *bp, size_t asize);
 static void insert(void *bp, size_t asize);
 #ifdef CHECKHEAP
 static int mm_check(void);
-//static bool check_list_mark(); TODO: IMPLEMENT
+static bool check_list_mark();
 static bool check_coalescing();
 static bool check_inList();
 static bool check_cont();
@@ -163,7 +163,7 @@ static void init_lists() {
 
 /* Check if a tag is the FENCE tag */
 static bool is_fence(void * tag) {
-	return (((struct boundary_tag *)tag)->inuse == 1 && ((struct boundary_tag *)tag)->size == 0);
+	return (((struct boundary_tag *)tag)->inuse != 0 && ((struct boundary_tag *)tag)->size == 0);
 }
 
 /* Return the block pointer with a given list_elem */
@@ -221,12 +221,6 @@ void *mm_malloc (size_t size)
     if ((bp = find_fit(awords)) != NULL) {
 		blk = bp;
         bp = place(blk, awords);
-        #ifdef DEBUG
-        printf("In mm_malloc: \n");
-        printf("New %s block at %p with size %d, payload is at %p\n",
-			(bp->header.inuse)?"Used":"Free", bp, bp->header.size, bp->payload);
-		print_seg();
-		#endif
         return bp->payload;
     }
 
@@ -236,12 +230,6 @@ void *mm_malloc (size_t size)
         return NULL;
     blk = bp;
     bp = place(blk, awords);
-    #ifdef DEBUG
-    printf("In mm_malloc: \n");
-    printf("New %s block at %p with size %d, payload is at %p\n",
-		(bp->header.inuse)?"Used":"Free", bp, bp->header.size, bp->payload);
-	print_seg();
-	#endif
     return bp->payload;
 }
 
@@ -504,40 +492,93 @@ static struct free_block *extend_heap(size_t words)
 
 #ifdef CHECKHEAP
 /* 
- * checkheap - 
+ * checkheap - Use helper methods to check heap consistency
  */
-static int mm_check(void)  
+static int mm_check()  
 { 
 	/* Check if every block in the free list is marked as free? */
-	//check_list_mark(); //- Jue
+	if (!check_list_mark()) return -1;
 	
 	/* Check if there are any contiguous free blocks that somehow escaped coalescing? */
-	check_coalescing(); //- Jue
+	if (!check_coalescing()) return -1;
 	
 	/* Check if every free block actually is in the free list? */
-	check_inList(); //- Jue
-	
+	if (!check_inList()) return -1;
+		
 	/* Check if each block in the heap are back to back */
-	check_cont(); //- Jue
-	
-	valid_heap_address(); // - Andrew
+	if (!check_cont()) return -1;		
+			
 	return 0;
-}						
+}
+
+/* Check if every block in the free list is marked as free? */
+static bool check_list_mark()
+{
+	int count = 0;
+	for (; count < NLISTS; count++) {
+		struct free_block *bp;
+		if (!list_empty(&segList[count])) {
+			struct list_elem * e = list_begin (&segList[count]);
+			for (; e!= list_end (&segList[count]); e = list_next (e)) {
+				bp = get_blk(e);
+				if (bp->header.inuse != 0) return false;
+			}
+		}
+	}
+	return true;
+}
+
+
 /* Check if there are any contiguous free blocks that somehow escaped coalescing? */
 static bool check_coalescing()
 {
+	int count = 0;
+	for (; count < NLISTS; count++) {
+		struct free_block *bp;
+		if (!list_empty(&segList[count])) {
+			struct list_elem * e = list_begin (&segList[count]);
+			for (; e!= list_end (&segList[count]); e = list_next (e)) {
+				bp = get_blk(e);
+				bool prev_alloc = prev_blk_footer(bp)->inuse;
+				bool next_alloc = next_blk_header(bp)->inuse;
+				if (prev_alloc == false || 
+					next_alloc == false) return false;
+			}
+		}
+	}
 	return true;
 }
 
 /* Check if every free block actually is in the free list? */
 static bool check_inList()
 {
+	struct free_block * start = mem_heap_lo();
+	struct free_block * n = (struct free_block *)((size_t *)start + 1);
+	int count = 0;
+	for (; !is_fence(n); n = (struct free_block *)((size_t *)n + blk_size(n)))
+	{
+		if (n->header.inuse == 0 )
+		{
+			 if (n->elem.prev == NULL 
+				|| n->elem.next == NULL) return false;
+		}
+		count++;
+	}
 	return true;
 }
 
 /* Check if each block in the heap are back to back */
 static bool check_cont()
 {
+	struct free_block * start = mem_heap_lo();
+	struct free_block * n = (struct free_block *)((size_t *)start + 1);
+	int count = 0;
+	for (; !is_fence(n); n = (struct free_block *)((size_t *)n + blk_size(n)))
+	{
+		if (n->header.inuse != 0 &&
+		 n->header.inuse != -1) return false;
+		count++;
+	}
 	return true;
 }
 
@@ -632,39 +673,16 @@ static void print_seg()
 static void print_heap()
 {
 	struct free_block * start = mem_heap_lo();
-	struct free_block * n = start + sizeof(struct boundary_tag);
+	struct free_block * n = (struct free_block *)((size_t *)start + 1);
 	int count = 0;
-	for (; !is_fence(n); n = n + blk_size(n))
+	for (; !is_fence(n); n = (struct free_block *)((size_t *)n + blk_size(n)))
 	{
 		printf("%dth %s block with size %d\n", 
 			count, (n->header.inuse)?"Used":"Free", blk_size(n));
-i		count++;
+		count++;
 	}
 	
 }
-
-/*
- * Checking if pointers in a heap block points to valid heap addresses
-
-static bool valid_heap_address()
-{
-	Andrew: UNDER CONSTRUCTION
-	struct free_block * start = mem_heap_lo();
-	struct free_block * end = mem_heap_hi();
-        struct free_block * n = start + sizeof(struct boundary_tag);
-        int count = 0;
-        for (; !is_fence(n); n = n + blk_size(n))
-        {
-		check if between addresses of low and high of heap
-                if(!(start < n) || !(n > end))
-		{
-			retrun false;
-		}
-i               count++;
-        }
-	return true;
-}
-*/
 #endif
 
 team_t team = {
