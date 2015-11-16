@@ -587,13 +587,14 @@ static bool valid_heap_address()
         //Andrew: UNDER CONSTRUCTION
         struct free_block * start = mem_heap_lo();
         struct free_block * end = mem_heap_hi();
-        struct free_block * n = start + sizeof(struct boundary_tag);
+        struct free_block * n = (struct free_block *)((size_t *)start + 1);
         int count = 0;
-        for (; !is_fence(n); n = n + blk_size(n))
+        for (; !is_fence(n); n = (struct free_block *)((size_t *)n + blk_size(n)))
         {
                 //check if between addresses of low and high of heap
-                if(!(start < n) || !(n > end))
+                if(!(start > n) || !(n < end))
                 {
+			printf("Out of bounds\n");
                         return false;
                 }
                count++;
