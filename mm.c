@@ -174,6 +174,13 @@ static struct free_block *get_blk(struct list_elem * e) {
 	return (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
 }
 
+static int in_counter(int size) {
+}
+
+static void push_occur(int size) {
+	
+}
+
 
 /* 
  * mm_init - Initialize the memory manager 
