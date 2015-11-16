@@ -175,11 +175,49 @@ static struct free_block *get_blk(struct list_elem * e) {
 	return (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
 }
 
-static int in_counter(int size) {
+// Checks to see if a value is within the matrix, frequency counter
+// If the value is  found we return its location within the matrix
+static int in_counter(int size) 
+{
+	int index;
+	// go through values in matrix "frequency_counter"
+	for(index = 0; index < 5; index++)
+	{
+		// check if we found the value
+		if(size == frequency_counter[index][0])
+		{
+			// found the value, increment amount of times
+			// it has appeared.
+			frequency_counter[index][1]++;
+			// return location of value
+			return index;
+		}
+	}
+	// not present
+	return -1;
 }
 
-static void push_occur(int size) {
-	
+// Returns index with the smallest amount of occurences
+// in the matrix
+static void min_occur(int size)
+{
+	int index;
+	for(index = 0; index < 5; index++)
+	{
+		if(size
+	}
+}
+
+// Adds a new value into the matrix, if there is space, and increments
+// the counter of a value if that value is already within the matrix 
+static void push_occur(int size) 
+{
+	int index = in_counter(size);
+	if(index == -1)
+	{
+		min_occur(size);
+		return;
+	}
 }
 
 
