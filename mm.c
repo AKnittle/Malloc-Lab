@@ -188,7 +188,6 @@ static int in_counter(int size)
 		{
 			// found the value, increment amount of times
 			// it has appeared.
-			//frequency_counter[index][1]++;
 			// return location of value
 			return index;
 		}
@@ -199,32 +198,49 @@ static int in_counter(int size)
 
 // Returns index with the smallest amount of occurences
 // in the matrix
-/*static void min_occur(int size)
+static int min_occur(int size)
 {
 	int index;
+	//smallest Index location
+	int minIndex = frequency_counter[0][0];
+	// number of occurences
+	int minOccur = frequency_counter[0][1];
+	//comparison values
+	int tempOccur = 0;
+	// Go through list
 	for(index = 0; index < 5; index++)
 	{
-		if(size
+		// quick check to see if there's a zero
+		if(frequency_counter[index][1] == 0)
+		{
+			return index;		
+		}
+		tempOccur = frequency_counter[index][1];
+		//comparing values in the matrix
+		if(tempOccur < minOccur)
+		{
+			minOccur = tempOccur;
+			minIndex = index;
+		}
 	}
-}*/
+	// returns min occurence location
+	return minIndex;
+}
 
 // Adds a new value into the matrix, if there is space, and increments
 // the counter of a value if that value is already within the matrix 
 static void push_occur(int size) 
 {
+	//look for already existing val in matrix
 	int index = in_counter(size);
 	if(index == -1)
 	{
-		//min_occur(size);
-		//return;
-		int i = 0;
-		for (; i < 5; i++) {
-			if (frequency_counter[i][0] == 0) {
-				frequency_counter[i][0] = size;
-				frequency_counter[i][1] = 1;
-				return;
-			}
-		}
+		// no val found. replace least occuring 
+		// amount with "size"
+		index =  min_occur(size);
+		frequency_counter[index][0] = size;
+		frequency_counter[index][1] = 1;
+		return;
 	}
 	else frequency_counter[index][1]++;
 }
@@ -278,7 +294,7 @@ void *mm_malloc (size_t size)
     size = (size + DSIZE - 1) & ~(DSIZE - 1);   			/* align to double word */
     awords = MAX(MIN_BLOCK_SIZE_WORDS, size/WSIZE);			/* respect minimum size */
     
-    push_occur(awords);
+   /* push_occur(awords);
     int idx = in_counter(awords);
     if (idx != -1) {
 		int count = frequency_counter[idx][1];
@@ -287,7 +303,7 @@ void *mm_malloc (size_t size)
 			frequency_counter[idx][1] = 1;
 		}
 	}
-    
+    */
 
     /* Search the free list for a fit */
     if ((bp = find_fit(awords)) != NULL) {
