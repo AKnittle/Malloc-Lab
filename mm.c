@@ -592,10 +592,10 @@ static bool valid_heap_address()
         for (; !is_fence(n); n = (struct free_block *)((size_t *)n + blk_size(n)))
         {
                 //check if between addresses of low and high of heap
-                if(!(start > n) || !(n < end))
+                if (n < start || n > end)
                 {
-			printf("Out of bounds\n");
-                        return false;
+					printf("Out of bounds\n");
+                    return false;
                 }
                count++;
         }
