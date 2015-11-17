@@ -73,19 +73,19 @@ struct free_block {
 /*
  * If DEBUG defined enable printf's and print functions
  */
-#define DEBUG
+//#define DEBUG
 
-#define CHECKHEAP
+//#define CHECKHEAP
 
 
 /* Global variables */	
 static struct list segList[NLISTS];	
-static int frequency_counter[5][2];
+//static int frequency_counter[5][2];
 
 
 /* Function prototypes for internal helper routines */
 static struct free_block *extend_heap(size_t words);
-static void smart_extend(size_t words);
+//static void smart_extend(size_t words);
 static struct free_block *coalesce(struct free_block *bp);
 static void *find_fit(size_t asize);
 static void *place(void *bp, size_t asize);
@@ -174,7 +174,7 @@ static bool is_fence(void * tag) {
 static struct free_block *get_blk(struct list_elem * e) {
 	return (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
 }
-
+/*
 // Checks to see if a value is within the matrix, frequency counter
 // If the value is  found we return its location within the matrix
 static int in_counter(int size) 
@@ -245,7 +245,7 @@ static void push_occur(int size)
 	else frequency_counter[index][1]++;
 }
 
-
+*/
 /* 
  * mm_init - Initialize the memory manager 
  */
@@ -253,11 +253,11 @@ int mm_init(void)
 {
 	/* Initial all segregated free explicit list */
 	init_lists();
-	frequency_counter[0][0] = 0;
+	/*frequency_counter[0][0] = 0;
 	frequency_counter[1][0] = 0;
 	frequency_counter[2][0] = 0;
 	frequency_counter[3][0] = 0;
-	frequency_counter[4][0] = 0;
+	frequency_counter[4][0] = 0;*/
 	
     /* Create the initial empty heap */
     struct boundary_tag * initial = mem_sbrk(2 * sizeof(struct boundary_tag));
@@ -600,18 +600,15 @@ static struct free_block *extend_heap(size_t words)
     return coalesce(blk);
 }
 
+/*
 static void smart_extend(size_t words)
 {
 	void *bp;	
-	
-	/* Allocate an even number of words to maintain alignment */
     words = (words + 1) & ~1;
     if (words < MIN_BLOCK_SIZE_WORDS) words = MIN_BLOCK_SIZE_WORDS;
     if ((long)(bp = mem_sbrk(words * WSIZE * 10)) == -1)  
         return; 
         
-    /* Initialize free block header/footer and the epilogue header.
-     * Note that we scoop up the previous epilogue here. */
     struct free_block * blk = bp - sizeof(FENCE);
     int i = 0;
     for (; i < 10; i++) {
@@ -621,6 +618,7 @@ static void smart_extend(size_t words)
 	}
     next_blk(blk)->header = FENCE;
 }
+* */
 
 #ifdef CHECKHEAP
 /* 
