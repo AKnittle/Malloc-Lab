@@ -63,7 +63,7 @@ struct free_block {
 #define WSIZE       4       /* Word and header/footer size (bytes) */
 #define DSIZE       8       /* Doubleword size (bytes) */
 #define MIN_BLOCK_SIZE_WORDS 4 /* Minimum block size in words */
-#define CHUNKSIZE  (1<<8)  /* Extend heap by this amount (words) */
+#define CHUNKSIZE  (1<<12)  /* Extend heap by this amount (words) */
 #define NLISTS		20		/* Number of segregated free lists */
 
 #define MAX(x, y) ((x) > (y)? (x) : (y))
@@ -281,20 +281,31 @@ void *mm_malloc (size_t size)
     size_t extendwords;  /* Amount to extend heap if no fit */
     struct used_block *bp;
     struct used_block *blk;      
-
+    
+	if (size < 512) { 
+		int count = 0;
+		int tempsize = 1;    
+    while ((count < NLISTS - 1) && (tempsize < size)) {
+		tempsize <<= 1;
+		count++;
+	}                                           
+	size = tempsize;
+}
+	
     if (segList[0].head.next == NULL){
         mm_init();
     }
     /* Ignore spurious requests */
     if (size == 0)
         return NULL;
-
+	
     /* Adjust block size to include overhead and alignment reqs. */
     size += 2 * sizeof(struct boundary_tag);    			/* account for tags */
     size = (size + DSIZE - 1) & ~(DSIZE - 1);   			/* align to double word */
+    
     awords = MAX(MIN_BLOCK_SIZE_WORDS, size/WSIZE);			/* respect minimum size */
     
-   /* push_occur(awords);
+    /*push_occur(awords);
     int idx = in_counter(awords);
     if (idx != -1) {
 		int count = frequency_counter[idx][1];
@@ -302,8 +313,9 @@ void *mm_malloc (size_t size)
 			smart_extend(awords);
 			frequency_counter[idx][1] = 1;
 		}
-	}
-    */
+	}*/
+
+    
 
     /* Search the free list for a fit */
     if ((bp = find_fit(awords)) != NULL) {
@@ -311,6 +323,16 @@ void *mm_malloc (size_t size)
         bp = place(blk, awords);
         return bp->payload;
     }
+    
+    /*push_occur(awords);
+    int idx = in_counter(awords);
+    if (idx != -1) {
+		int count = frequency_counter[idx][1];
+		if (count > 10) {
+			smart_extend(awords);
+			frequency_counter[idx][1] = 1;
+		}
+	}*/
 
     /* No fit found. Get more memory and place the block */
     extendwords = MAX(awords,CHUNKSIZE);
