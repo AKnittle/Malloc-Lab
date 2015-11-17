@@ -24,8 +24,8 @@
 
 //STRUCTS: ------------------------------------------------
 struct boundary_tag {
-    int inuse:1;        // inuse bit
-    int size:31;        // size of block, in words
+    size_t inuse:1;        // inuse bit
+    size_t size:(sizeof(void*) * 8 - 1);        // size of block, in words
 };
 
 /* FENCE is used for heap prologue/epilogue. */
@@ -59,9 +59,9 @@ struct free_block {
 
 
 /* Basic constants and macros */
-#define WSIZE       4       /* Word and header/footer size (bytes) */
-#define DSIZE       8       /* Doubleword size (bytes) */
-#define MIN_BLOCK_SIZE_WORDS 4 /* Minimum block size in words */
+#define WSIZE       sizeof(void*)       /* Word and header/footer size (bytes) */
+#define DSIZE       2 * sizeof(void*)       /* Doubleword size (bytes) */
+#define MIN_BLOCK_SIZE_WORDS  4 /* Minimum block size in words */
 #define CHUNKSIZE  (1<<12)  /* Extend heap by this amount (words) */
 #define NLISTS		20		/* Number of segregated free lists */
 
@@ -72,7 +72,7 @@ struct free_block {
 /*
  * If DEBUG defined enable printf's and print functions
  */
-//#define DEBUG
+#define DEBUG
 
 //#define CHECKHEAP
 
@@ -96,10 +96,14 @@ static bool check_cont();
 static bool valid_heap_address();
 #endif
 
-
+#ifdef DEBUG
+static void print_list(struct list *elist, int n);
+static void print_seg();
+static void print_heap();
+#endif
 /* Return size of block is free */
 static size_t blk_size(struct free_block *blk) { 
-    return blk->header.size; 
+    return blk->header.size;
 }
 
 /* Given a free block, obtain previous's block footer.
@@ -119,7 +123,6 @@ static struct boundary_tag *next_blk_header(struct free_block *blk) {
    This function should only be used when knowing that next block is a free_block*/
 static struct free_block *prev_blk(struct free_block *blk) {
     struct boundary_tag *prevfooter = prev_blk_footer(blk);
-    //assert(prevfooter->size != 0);
     return (struct free_block *)((size_t *)blk - prevfooter->size);
 }
 
@@ -127,17 +130,16 @@ static struct free_block *prev_blk(struct free_block *blk) {
    Not meaningful for right-most block. 
    This function should only be used when knowing that next block is a free_block*/
 static struct free_block *next_blk(struct free_block *blk) {
-    //assert(blk_size(blk) != 0);
     return (struct free_block *)((size_t *)blk + blk->header.size);
 }
 
 /* Given a block, obtain its footer boundary tag */
 static struct boundary_tag * get_footer(void *blk) {
     return (void *)((size_t *)blk + ((struct free_block*)blk)->header.size) 
-                   - sizeof(struct boundary_tag);
+                   - sizeof(struct boundary_tag)/WSIZE;
 }
 /*Mark a block as used and set its size*/
-static void mark_block_used(struct used_block *blk, int size)
+static void mark_block_used(struct used_block *blk, size_t size)
 {
 	blk->header.inuse = 1;
 	blk->header.size = size;
@@ -145,7 +147,7 @@ static void mark_block_used(struct used_block *blk, int size)
 }
 
 /* Mark a block as free and set its size. */
-static void mark_block_free(struct free_block *blk, int size) {
+static void mark_block_free(struct free_block *blk, size_t size) {
     blk->header.inuse = 0;
     blk->header.size = size;
     * get_footer(blk) = blk->header;    /* Copy header to footer */
@@ -633,6 +635,59 @@ static void insert(void *bp, size_t asize)
 	}
 	
 }
+
+
+
+#ifdef DEBUG
+
+/* 
+ * Helper print function for dubugging 
+ */
+static void print_list(struct list *elist, int n)
+{
+	struct free_block *bp;
+	if (!list_empty(elist)) {
+		struct list_elem * e = list_begin (elist);
+		printf("In segList[%d]: \n", n);
+		for (; e!= list_end (elist); e = list_next (e)) {
+			bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
+			printf("%s block at %p with size %d\n",
+				(bp->header.inuse)?"Used":"Free", bp, bp->header.size);
+		}
+	}
+}
+
+/* 
+ * Helper print function for dubugging 
+ */
+static void print_seg()
+{
+	int count = 0;
+	for (; count < NLISTS; count++) {
+		print_list(&segList[count], count);
+	}
+}
+
+/* 
+ * Helper print function for dubugging 
+ */
+static void print_heap()
+{
+	struct free_block * start = mem_heap_lo();
+	struct free_block * n = (struct free_block *)((size_t *)start + sizeof(struct boundary_tag)/WSIZE);
+	int count = 0;
+	for (; !is_fence(n); n = (struct free_block *)((size_t *)n + blk_size(n)))
+	{
+		printf("%dth %s block at %p with size %d\n", 
+			count, (n->header.inuse)?"Used":"Free", n, (int)blk_size(n));
+		count++;
+	}
+	
+}
+#endif
+
+
+
 
 team_t team = {
     /* Team name */
