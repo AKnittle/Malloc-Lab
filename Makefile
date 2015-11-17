@@ -4,9 +4,9 @@
 VERSION = 1
 
 CC = gcc
-#CFLAGS = -Wall -O3 -Werror -m32
+CFLAGS = -Wall -O3 -Werror -m64
 # for debugging
-CFLAGS = -Wall -g -m32
+#CFLAGS = -Wall -g -m64
 
 SHARED_OBJS = mdriver.o memlib.o fsecs.o fcyc.o clock.o ftimer.o list.o
 OBJS = $(SHARED_OBJS) mm.o

@@ -68,12 +68,6 @@ struct free_block {
 #define MAX(x, y) ((x) > (y)? (x) : (y))
 #define MIN(x, y) ((x) < (y)? (x) : (y))
 
-
-/*
- * If DEBUG defined enable printf's and print functions
- */
-#define DEBUG
-
 //#define CHECKHEAP
 
 
@@ -96,11 +90,6 @@ static bool check_cont();
 static bool valid_heap_address();
 #endif
 
-#ifdef DEBUG
-static void print_list(struct list *elist, int n);
-static void print_seg();
-static void print_heap();
-#endif
 /* Return size of block is free */
 static size_t blk_size(struct free_block *blk) { 
 	return blk->header.size;
@@ -635,58 +624,6 @@ static void insert(void *bp, size_t asize)
 	}
 
 }
-
-
-
-#ifdef DEBUG
-
-/* 
- * Helper print function for dubugging 
- */
-static void print_list(struct list *elist, int n)
-{
-	struct free_block *bp;
-	if (!list_empty(elist)) {
-		struct list_elem * e = list_begin (elist);
-		printf("In segList[%d]: \n", n);
-		for (; e!= list_end (elist); e = list_next (e)) {
-			bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
-			printf("%s block at %p with size %d\n",
-					(bp->header.inuse)?"Used":"Free", bp, bp->header.size);
-		}
-	}
-}
-
-/* 
- * Helper print function for dubugging 
- */
-static void print_seg()
-{
-	int count = 0;
-	for (; count < NLISTS; count++) {
-		print_list(&segList[count], count);
-	}
-}
-
-/* 
- * Helper print function for dubugging 
- */
-static void print_heap()
-{
-	struct free_block * start = mem_heap_lo();
-	struct free_block * n = (struct free_block *)((size_t *)start + sizeof(struct boundary_tag)/WSIZE);
-	int count = 0;
-	for (; !is_fence(n); n = (struct free_block *)((size_t *)n + blk_size(n)))
-	{
-		printf("%dth %s block at %p with size %d\n", 
-				count, (n->header.inuse)?"Used":"Free", n, (int)blk_size(n));
-		count++;
-	}
-
-}
-#endif
-
-
 
 
 team_t team = {
