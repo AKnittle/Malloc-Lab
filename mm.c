@@ -135,8 +135,8 @@ static struct free_block *next_blk(struct free_block *blk) {
 
 /* Given a block, obtain its footer boundary tag */
 static struct boundary_tag * get_footer(void *blk) {
-    return (void *)((size_t *)blk + ((struct free_block*)blk)->header.size) 
-                   - sizeof(struct boundary_tag)/WSIZE;
+    return (void *)((size_t *)((size_t *)blk + ((struct free_block*)blk)->header.size) 
+                   - sizeof(struct boundary_tag)/WSIZE);
 }
 /*Mark a block as used and set its size*/
 static void mark_block_used(struct used_block *blk, size_t size)
