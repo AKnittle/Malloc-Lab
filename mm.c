@@ -52,7 +52,6 @@ struct used_block {
 struct free_block {
     struct boundary_tag header; /* offset 0, at address 4 mod 8 */
     struct list_elem elem;		/* Double linked list elem in free block*/
-    char payload[0];            /* offset 4, at address 0 mod 8 */
 };
 
 
@@ -80,12 +79,10 @@ struct free_block {
 
 /* Global variables */	
 static struct list segList[NLISTS];	
-//static int frequency_counter[5][2];
 
 
 /* Function prototypes for internal helper routines */
 static struct free_block *extend_heap(size_t words);
-//static void smart_extend(size_t words);
 static struct free_block *coalesce(struct free_block *bp);
 static void *find_fit(size_t asize);
 static void *place(void *bp, size_t asize);
@@ -97,11 +94,6 @@ static bool check_coalescing();
 static bool check_inList();
 static bool check_cont();
 static bool valid_heap_address();
-#endif
-#ifdef DEBUG
-static void print_list(struct list *elist, int n);
-static void print_seg();
-static void print_heap();
 #endif
 
 
@@ -174,78 +166,8 @@ static bool is_fence(void * tag) {
 static struct free_block *get_blk(struct list_elem * e) {
 	return (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
 }
-/*
-// Checks to see if a value is within the matrix, frequency counter
-// If the value is  found we return its location within the matrix
-static int in_counter(int size) 
-{
-	int index;
-	// go through values in matrix "frequency_counter"
-	for(index = 0; index < 5; index++)
-	{
-		// check if we found the value
-		if(size == frequency_counter[index][0])
-		{
-			// found the value, increment amount of times
-			// it has appeared.
-			// return location of value
-			return index;
-		}
-	}
-	// not present
-	return -1;
-}
 
-// Returns index with the smallest amount of occurences
-// in the matrix
-static int min_occur(int size)
-{
-	int index;
-	//smallest Index location
-	int minIndex = frequency_counter[0][0];
-	// number of occurences
-	int minOccur = frequency_counter[0][1];
-	//comparison values
-	int tempOccur = 0;
-	// Go through list
-	for(index = 0; index < 5; index++)
-	{
-		// quick check to see if there's a zero
-		if(frequency_counter[index][1] == 0)
-		{
-			return index;		
-		}
-		tempOccur = frequency_counter[index][1];
-		//comparing values in the matrix
-		if(tempOccur < minOccur)
-		{
-			minOccur = tempOccur;
-			minIndex = index;
-		}
-	}
-	// returns min occurence location
-	return minIndex;
-}
 
-// Adds a new value into the matrix, if there is space, and increments
-// the counter of a value if that value is already within the matrix 
-static void push_occur(int size) 
-{
-	//look for already existing val in matrix
-	int index = in_counter(size);
-	if(index == -1)
-	{
-		// no val found. replace least occuring 
-		// amount with "size"
-		index =  min_occur(size);
-		frequency_counter[index][0] = size;
-		frequency_counter[index][1] = 1;
-		return;
-	}
-	else frequency_counter[index][1]++;
-}
-
-*/
 /* 
  * mm_init - Initialize the memory manager 
  */
@@ -253,11 +175,6 @@ int mm_init(void)
 {
 	/* Initial all segregated free explicit list */
 	init_lists();
-	/*frequency_counter[0][0] = 0;
-	frequency_counter[1][0] = 0;
-	frequency_counter[2][0] = 0;
-	frequency_counter[3][0] = 0;
-	frequency_counter[4][0] = 0;*/
 	
     /* Create the initial empty heap */
     struct boundary_tag * initial = mem_sbrk(2 * sizeof(struct boundary_tag));
@@ -282,15 +199,17 @@ void *mm_malloc (size_t size)
     struct used_block *bp;
     struct used_block *blk;      
     
+    
+    //Round up to next power of 2 if the size is less than 512
 	if (size < 512) { 
 		int count = 0;
 		int tempsize = 1;    
-    while ((count < NLISTS - 1) && (tempsize < size)) {
-		tempsize <<= 1;
-		count++;
-	}                                           
-	size = tempsize;
-}
+		while ((count < NLISTS - 1) && (tempsize < size)) {
+			tempsize <<= 1;
+			count++;
+		}                                           
+		size = tempsize;
+	}
 	
     if (segList[0].head.next == NULL){
         mm_init();
@@ -301,20 +220,8 @@ void *mm_malloc (size_t size)
 	
     /* Adjust block size to include overhead and alignment reqs. */
     size += 2 * sizeof(struct boundary_tag);    			/* account for tags */
-    size = (size + DSIZE - 1) & ~(DSIZE - 1);   			/* align to double word */
-    
+    size = (size + DSIZE - 1) & ~(DSIZE - 1);   			/* align to double word */    
     awords = MAX(MIN_BLOCK_SIZE_WORDS, size/WSIZE);			/* respect minimum size */
-    
-    /*push_occur(awords);
-    int idx = in_counter(awords);
-    if (idx != -1) {
-		int count = frequency_counter[idx][1];
-		if (count > 10) {
-			smart_extend(awords);
-			frequency_counter[idx][1] = 1;
-		}
-	}*/
-
     
 
     /* Search the free list for a fit */
@@ -323,16 +230,6 @@ void *mm_malloc (size_t size)
         bp = place(blk, awords);
         return bp->payload;
     }
-    
-    /*push_occur(awords);
-    int idx = in_counter(awords);
-    if (idx != -1) {
-		int count = frequency_counter[idx][1];
-		if (count > 10) {
-			smart_extend(awords);
-			frequency_counter[idx][1] = 1;
-		}
-	}*/
 
     /* No fit found. Get more memory and place the block */
     extendwords = MAX(awords,CHUNKSIZE);
@@ -548,20 +445,7 @@ static void *place(void *bp, size_t asize)
 	size_t csize = blk_size(bp);
 	//Check if there's "extra space" 
 	if((csize - asize) >= MIN_BLOCK_SIZE_WORDS)
-	{
-		//Break up block, reducing fragmentation
-		
-		//Remove the original block, mark first part as used
-		/*list_remove(&((struct free_block*)bp)->elem);		
-		mark_block_used((struct used_block*)bp, asize);
-		
-		// Mark the remaind block as free and insert to appropriate list
-		bp = ((size_t *)bp + ((struct used_block*)bp)->header.size);
-		mark_block_free((struct free_block*)bp, csize-asize);		
-		insert(bp, blk_size(bp));
-		*/
-		
-		
+	{		
 		mark_block_free((struct free_block*)bp, csize-asize);
 		new = ((size_t *)bp + ((struct free_block*)bp)->header.size);
 		mark_block_used((struct used_block*)new, asize);
@@ -600,26 +484,6 @@ static struct free_block *extend_heap(size_t words)
     return coalesce(blk);
 }
 
-/*
-static void smart_extend(size_t words)
-{
-	void *bp;	
-    words = (words + 1) & ~1;
-    if (words < MIN_BLOCK_SIZE_WORDS) words = MIN_BLOCK_SIZE_WORDS;
-    if ((long)(bp = mem_sbrk(words * WSIZE * 10)) == -1)  
-        return; 
-        
-    struct free_block * blk = bp - sizeof(FENCE);
-    int i = 0;
-    for (; i < 10; i++) {
-		mark_block_free(blk, words);
-		insert(blk, words);
-		blk = next_blk(blk);
-	}
-    next_blk(blk)->header = FENCE;
-}
-* */
-
 #ifdef CHECKHEAP
 /* 
  * checkheap - Use helper methods to check heap consistency
@@ -636,7 +500,9 @@ static int mm_check()
 	if (!check_inList()) return -1;
 		
 	/* Check if each block in the heap are back to back */
-	if (!check_cont()) return -1;		
+	if (!check_cont()) return -1;	
+	
+	if (!valid_heap_address()) return -1;	
 			
 	return 0;
 }
@@ -714,7 +580,7 @@ static bool check_cont()
 
 static bool valid_heap_address()
 {
-        //Andrew: UNDER CONSTRUCTION
+       
         struct free_block * start = mem_heap_lo();
         struct free_block * end = mem_heap_hi();
         struct free_block * n = (struct free_block *)((size_t *)start + 1);
@@ -767,54 +633,6 @@ static void insert(void *bp, size_t asize)
 	}
 	
 }
-
-#ifdef DEBUG
-
-/* 
- * Helper print function for dubugging 
- */
-static void print_list(struct list *elist, int n)
-{
-	struct free_block *bp;
-	if (!list_empty(elist)) {
-		struct list_elem * e = list_begin (elist);
-		printf("In segList[%d]: \n", n);
-		for (; e!= list_end (elist); e = list_next (e)) {
-			bp = (struct free_block *)((size_t *)e - sizeof(struct boundary_tag) / WSIZE);
-			printf("%s block at %p with size %d\n",
-				(bp->header.inuse)?"Used":"Free", bp, bp->header.size);
-		}
-	}
-}
-
-/* 
- * Helper print function for dubugging 
- */
-static void print_seg()
-{
-	int count = 0;
-	for (; count < NLISTS; count++) {
-		print_list(&segList[count], count);
-	}
-}
-
-/* 
- * Helper print function for dubugging 
- */
-static void print_heap()
-{
-	struct free_block * start = mem_heap_lo();
-	struct free_block * n = (struct free_block *)((size_t *)start + 1);
-	int count = 0;
-	for (; !is_fence(n); n = (struct free_block *)((size_t *)n + blk_size(n)))
-	{
-		printf("%dth %s block at %p with size %d\n", 
-			count, (n->header.inuse)?"Used":"Free", n, blk_size(n));
-		count++;
-	}
-	
-}
-#endif
 
 team_t team = {
     /* Team name */
